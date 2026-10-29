@@ -1,0 +1,11 @@
+node_modules/
+dist/
+build/
+.turbo/
+.env
+.env.local
+*.log
+.DS_Store
+coverage/
+bin/
+services/keeper/takt-keeper
