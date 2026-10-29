@@ -9,3 +9,5 @@ build/
 coverage/
 bin/
 services/keeper/takt-keeper
+package-lock.json
+

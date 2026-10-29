@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    name: Build & Test Monorepo
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Set up Go 1.22
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Install workspace dependencies
+        run: npm install
+
+      - name: Build and test @takt-protocol/sdk
+        run: |
+          npm run build --workspace=@takt-protocol/sdk
+          npm run test --workspace=@takt-protocol/sdk
+
+      - name: Typecheck and build @takt-protocol/web
+        run: npm run build --workspace=@takt-protocol/web
+
+      - name: Build Go keeper service
+        working-directory: services/keeper
+        run: go build -v -o takt-keeper .
