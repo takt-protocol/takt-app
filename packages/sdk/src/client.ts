@@ -3,6 +3,7 @@ import {
   DEFAULT_TESTNET_CONFIG,
   TaktNetworkConfig,
 } from "./types.js";
+import { isValidContractId, isValidPublicKey } from "./format.js";
 
 export interface ContractCallDescriptor {
   contractId: string;
@@ -24,6 +25,9 @@ export class TaktClient {
     keeper: string,
     stakeAmount: bigint,
   ): ContractCallDescriptor {
+    if (!isValidPublicKey(keeper)) {
+      throw new Error(`Invalid keeper public key: "${keeper}"`);
+    }
     if (stakeAmount <= 0n) {
       throw new Error("stakeAmount must be positive");
     }
@@ -38,6 +42,9 @@ export class TaktClient {
   }
 
   public buildRequestUnbondCall(keeper: string): ContractCallDescriptor {
+    if (!isValidPublicKey(keeper)) {
+      throw new Error(`Invalid keeper public key: "${keeper}"`);
+    }
     return {
       contractId: this.config.keeperRegistryId,
       method: "request_unbond",
@@ -46,6 +53,9 @@ export class TaktClient {
   }
 
   public buildWithdrawStakeCall(keeper: string): ContractCallDescriptor {
+    if (!isValidPublicKey(keeper)) {
+      throw new Error(`Invalid keeper public key: "${keeper}"`);
+    }
     return {
       contractId: this.config.keeperRegistryId,
       method: "withdraw_stake",
@@ -57,6 +67,9 @@ export class TaktClient {
     owner: string,
     amount: bigint,
   ): ContractCallDescriptor {
+    if (!isValidPublicKey(owner)) {
+      throw new Error(`Invalid owner public key: "${owner}"`);
+    }
     if (amount <= 0n) {
       throw new Error("deposit amount must be positive");
     }
@@ -75,6 +88,9 @@ export class TaktClient {
     jobId: number,
     amount: bigint,
   ): ContractCallDescriptor {
+    if (!isValidPublicKey(owner)) {
+      throw new Error(`Invalid owner public key: "${owner}"`);
+    }
     if (amount <= 0n) {
       throw new Error("top-up amount must be positive");
     }
@@ -90,6 +106,12 @@ export class TaktClient {
   }
 
   public buildCreateJobCall(params: CreateJobParams): ContractCallDescriptor {
+    if (!isValidPublicKey(params.owner)) {
+      throw new Error(`Invalid owner public key: "${params.owner}"`);
+    }
+    if (!isValidContractId(params.targetContract)) {
+      throw new Error(`Invalid targetContract address: "${params.targetContract}"`);
+    }
     if (params.intervalSeconds < 5) {
       throw new Error("intervalSeconds must be at least 5 seconds");
     }
@@ -119,6 +141,9 @@ export class TaktClient {
     keeper: string,
     jobId: number,
   ): ContractCallDescriptor {
+    if (!isValidPublicKey(keeper)) {
+      throw new Error(`Invalid keeper public key: "${keeper}"`);
+    }
     return {
       contractId: this.config.jobEngineId,
       method: "execute_job",
@@ -130,6 +155,9 @@ export class TaktClient {
   }
 
   public buildPauseJobCall(owner: string, jobId: number): ContractCallDescriptor {
+    if (!isValidPublicKey(owner)) {
+      throw new Error(`Invalid owner public key: "${owner}"`);
+    }
     return {
       contractId: this.config.jobEngineId,
       method: "pause_job",
@@ -138,6 +166,9 @@ export class TaktClient {
   }
 
   public buildResumeJobCall(owner: string, jobId: number): ContractCallDescriptor {
+    if (!isValidPublicKey(owner)) {
+      throw new Error(`Invalid owner public key: "${owner}"`);
+    }
     return {
       contractId: this.config.jobEngineId,
       method: "resume_job",
@@ -146,6 +177,9 @@ export class TaktClient {
   }
 
   public buildCancelJobCall(owner: string, jobId: number): ContractCallDescriptor {
+    if (!isValidPublicKey(owner)) {
+      throw new Error(`Invalid owner public key: "${owner}"`);
+    }
     return {
       contractId: this.config.jobEngineId,
       method: "cancel_job",
