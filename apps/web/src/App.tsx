@@ -5,7 +5,8 @@ import {
   KeeperInfo,
   TaktClient,
 } from "@takt-protocol/sdk";
-import { DashboardStats, ViewTab } from "./types.js";
+import { DashboardStats, ViewTab, WalletMode } from "./types.js";
+import { connectWallet } from "./wallet.js";
 import { Navbar } from "./components/Navbar.js";
 import { StatsHeader } from "./components/StatsHeader.js";
 import { JobsView } from "./components/JobsView.js";
@@ -59,6 +60,7 @@ const INITIAL_KEEPERS: KeeperInfo[] = [
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ViewTab>("jobs");
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [walletMode, setWalletMode] = useState<WalletMode | null>(null);
   const [jobs] = useState<Job[]>(INITIAL_JOBS);
   const [keepers] = useState<KeeperInfo[]>(INITIAL_KEEPERS);
   const [userBalance] = useState<bigint>(450_000_000n);
@@ -93,10 +95,15 @@ export const App: React.FC = () => {
     [jobs, keepers],
   );
 
-  const handleConnectWallet = () => {
-    setWalletAddress(
-      "GB7T7QW7U6J6Z2F3X4V5B6N7M8K9L2P3Q4R5S6T7U8V9W2X3Y4Z5A6B7",
-    );
+  const handleConnectWallet = async () => {
+    const result = await connectWallet();
+    setWalletAddress(result.address);
+    setWalletMode(result.mode);
+  };
+
+  const handleDisconnectWallet = () => {
+    setWalletAddress(null);
+    setWalletMode(null);
   };
 
   const handleRefresh = () => {
@@ -109,8 +116,10 @@ export const App: React.FC = () => {
         activeTab={activeTab}
         networkName={client.config.network}
         onConnectWallet={handleConnectWallet}
+        onDisconnectWallet={handleDisconnectWallet}
         setActiveTab={setActiveTab}
         walletAddress={walletAddress}
+        walletMode={walletMode}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
