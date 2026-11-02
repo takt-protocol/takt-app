@@ -12,11 +12,12 @@ import { JobsView } from "./components/JobsView.js";
 import { VaultView } from "./components/VaultView.js";
 import { KeepersView } from "./components/KeepersView.js";
 import { DeployView } from "./components/DeployView.js";
+import { connectWallet, ConnectionMode, DEMO_WALLET_ADDRESS } from "./wallet.js";
 
 const INITIAL_JOBS: Job[] = [
   {
     id: 1,
-    owner: "GB7T7QW7U6J6Z2F3X4V5B6N7M8K9L2P3Q4R5S6T7U8V9W2X3Y4Z5A6B7",
+    owner: DEMO_WALLET_ADDRESS,
     targetContract: "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
     targetFn: "harvest_yield",
     targetArgsXdr: [],
@@ -30,8 +31,8 @@ const INITIAL_JOBS: Job[] = [
   },
   {
     id: 2,
-    owner: "GB7T7QW7U6J6Z2F3X4V5B6N7M8K9L2P3Q4R5S6T7U8V9W2X3Y4Z5A6B7",
-    targetContract: "CCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB",
+    owner: DEMO_WALLET_ADDRESS,
+    targetContract: "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
     targetFn: "rebalance_pool",
     targetArgsXdr: [],
     intervalSeconds: 60,
@@ -46,7 +47,7 @@ const INITIAL_JOBS: Job[] = [
 
 const INITIAL_KEEPERS: KeeperInfo[] = [
   {
-    address: "GD5K3M2N4P6Q8R9S2T3U4V5W6X7Y8Z9A2B3C4D5E6F7G8H9J2K3L4M5N",
+    address: "GA7EUCYRTB2GGQEDBOKG3O234PO4DTR7XLRKCWZOEPC2PABHR5UPQKXR",
     stakedAmount: 2_500_000_000n,
     status: "Active",
     registeredAt: 1730100000,
@@ -59,6 +60,7 @@ const INITIAL_KEEPERS: KeeperInfo[] = [
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ViewTab>("jobs");
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [connectionMode, setConnectionMode] = useState<ConnectionMode | null>(null);
   const [jobs] = useState<Job[]>(INITIAL_JOBS);
   const [keepers] = useState<KeeperInfo[]>(INITIAL_KEEPERS);
   const [userBalance] = useState<bigint>(450_000_000n);
@@ -93,10 +95,15 @@ export const App: React.FC = () => {
     [jobs, keepers],
   );
 
-  const handleConnectWallet = () => {
-    setWalletAddress(
-      "GB7T7QW7U6J6Z2F3X4V5B6N7M8K9L2P3Q4R5S6T7U8V9W2X3Y4Z5A6B7",
-    );
+  const handleConnectWallet = async () => {
+    const { address, mode } = await connectWallet();
+    setWalletAddress(address);
+    setConnectionMode(mode);
+  };
+
+  const handleDisconnectWallet = () => {
+    setWalletAddress(null);
+    setConnectionMode(null);
   };
 
   const handleRefresh = () => {
@@ -109,8 +116,10 @@ export const App: React.FC = () => {
         activeTab={activeTab}
         networkName={client.config.network}
         onConnectWallet={handleConnectWallet}
+        onDisconnectWallet={handleDisconnectWallet}
         setActiveTab={setActiveTab}
         walletAddress={walletAddress}
+        connectionMode={connectionMode}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
