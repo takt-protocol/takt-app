@@ -7,13 +7,25 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
 
+type MetricsResponse struct {
+	PollsTotal          uint64 `json:"polls_total"`
+	ExecutionsAttempted uint64 `json:"executions_attempted"`
+	ExecutionsSucceeded uint64 `json:"executions_succeeded"`
+	LastPollTimestamp   int64  `json:"last_poll_timestamp"`
+}
+
 type KeeperDaemon struct {
-	config *Config
-	client *RPCClient
+	config              *Config
+	client              *RPCClient
+	pollsTotal          atomic.Uint64
+	executionsAttempted atomic.Uint64
+	executionsSucceeded atomic.Uint64
+	lastPollTimestamp   atomic.Int64
 }
 
 func NewKeeperDaemon(cfg *Config) *KeeperDaemon {
@@ -23,10 +35,16 @@ func NewKeeperDaemon(cfg *Config) *KeeperDaemon {
 	}
 }
 
-func (d *KeeperDaemon) Start() {
-	log.Printf("Starting Takt Keeper Daemon (Network: %s, Poll Interval: %ds)", d.config.RPCURL, d.config.PollIntervalSeconds)
+func (d *KeeperDaemon) GetMetrics() MetricsResponse {
+	return MetricsResponse{
+		PollsTotal:          d.pollsTotal.Load(),
+		ExecutionsAttempted: d.executionsAttempted.Load(),
+		ExecutionsSucceeded: d.executionsSucceeded.Load(),
+		LastPollTimestamp:   d.lastPollTimestamp.Load(),
+	}
+}
 
-	// Start HTTP health server
+func (d *KeeperDaemon) SetupRoutes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -36,9 +54,24 @@ func (d *KeeperDaemon) Start() {
 		})
 	})
 
+	mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		metrics := d.GetMetrics()
+		json.NewEncoder(w).Encode(metrics)
+	})
+
+	return mux
+}
+
+func (d *KeeperDaemon) Start() {
+	log.Printf("Starting Takt Keeper Daemon (Network: %s, Poll Interval: %ds)", d.config.RPCURL, d.config.PollIntervalSeconds)
+
+	// Start HTTP health and metrics server
+	handler := d.SetupRoutes()
+
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", d.config.APIPort),
-		Handler: mux,
+		Handler: handler,
 	}
 
 	go func() {
@@ -66,6 +99,8 @@ func (d *KeeperDaemon) Start() {
 }
 
 func (d *KeeperDaemon) pollAndExecuteJobs() {
+	d.pollsTotal.Add(1)
+	d.lastPollTimestamp.Store(time.Now().Unix())
 	log.Println("[Keeper] Polling Soroban RPC for executable jobs...")
 	// In production, this queries JobEngine contract state and submits execute_job transactions
 }
