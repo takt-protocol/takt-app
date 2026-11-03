@@ -1,3 +1,5 @@
+import { StrKey } from "@stellar/stellar-sdk";
+
 export const STROOPS_PER_TOKEN = 10_000_000n; // 7 decimals on Stellar
 export const BPS_DENOMINATOR = 10_000n;
 
@@ -76,4 +78,20 @@ export function shortenAddress(address: string, chars = 4): string {
     return address;
   }
   return `${address.slice(0, chars + 1)}...${address.slice(-chars)}`;
+}
+
+/**
+ * Returns true when `address` is a syntactically valid Stellar account ID
+ * (`G...`, 56 base32 chars, valid checksum).
+ */
+export function isValidPublicKey(address: string): boolean {
+  return StrKey.isValidEd25519PublicKey(address);
+}
+
+/**
+ * Returns true when `address` is a syntactically valid Soroban contract ID
+ * (`C...`, 56 base32 chars, valid checksum).
+ */
+export function isValidContractId(address: string): boolean {
+  return StrKey.isValidContract(address);
 }
