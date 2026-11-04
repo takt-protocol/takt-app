@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DEFAULT_TESTNET_CONFIG,
   Job,
@@ -62,6 +62,25 @@ export const App: React.FC = () => {
   const [jobs] = useState<Job[]>(INITIAL_JOBS);
   const [keepers] = useState<KeeperInfo[]>(INITIAL_KEEPERS);
   const [userBalance] = useState<bigint>(450_000_000n);
+  const [rpcHealth, setRpcHealth] = useState<{
+    status: string;
+    latestLedger?: number;
+    latestLedgerCloseTime?: string;
+    oldestLedger?: number;
+    isSimulated?: boolean;
+    isLoading?: boolean;
+    lastCheckedAt?: Date | null;
+    error?: string | null;
+  }>({
+    status: "healthy",
+    isSimulated: true,
+    isLoading: false,
+    lastCheckedAt: null,
+    error: null,
+  });
+
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const requestSeqRef = useRef<number>(0);
 
   const client = useMemo(
     () =>
@@ -83,6 +102,65 @@ export const App: React.FC = () => {
     [],
   );
 
+  const fetchRpcHealth = useCallback(async () => {
+    // Cancel any in-flight request to prevent race conditions
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const currentSeq = ++requestSeqRef.current;
+
+    setRpcHealth((prev) => ({ ...prev, isLoading: true, error: null }));
+
+    try {
+      const health = await client.getHealth({ signal: controller.signal, timeoutMs: 8000 });
+      // Ignore if superseded by a newer request
+      if (currentSeq !== requestSeqRef.current) return;
+
+      setRpcHealth({
+        status: health.status,
+        latestLedger: health.latestLedger,
+        latestLedgerCloseTime: health.latestLedgerCloseTime,
+        oldestLedger: health.oldestLedger,
+        isSimulated: false,
+        isLoading: false,
+        lastCheckedAt: new Date(),
+        error: null,
+      });
+    } catch (err: unknown) {
+      if (currentSeq !== requestSeqRef.current) return;
+      if (err instanceof DOMException && err.name === "AbortError") return;
+
+      console.warn("Soroban RPC connection failed, falling back to simulated mode:", err);
+      setRpcHealth({
+        status: "offline",
+        latestLedger: undefined,
+        latestLedgerCloseTime: undefined,
+        oldestLedger: undefined,
+        isSimulated: true,
+        isLoading: false,
+        lastCheckedAt: new Date(),
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }, [client]);
+
+  useEffect(() => {
+    fetchRpcHealth();
+    // Bounded periodic refresh interval (every 30 seconds)
+    const intervalId = setInterval(() => {
+      fetchRpcHealth();
+    }, 30000);
+
+    return () => {
+      clearInterval(intervalId);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [fetchRpcHealth]);
+
   const stats: DashboardStats = useMemo(
     () => ({
       activeJobsCount: jobs.filter((j) => j.status === "Active").length,
@@ -101,6 +179,7 @@ export const App: React.FC = () => {
 
   const handleRefresh = () => {
     console.log("Refreshed Takt Protocol state.");
+    fetchRpcHealth();
   };
 
   return (
@@ -111,6 +190,8 @@ export const App: React.FC = () => {
         onConnectWallet={handleConnectWallet}
         setActiveTab={setActiveTab}
         walletAddress={walletAddress}
+        rpcHealth={rpcHealth}
+        onRefreshRpc={fetchRpcHealth}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -143,7 +224,13 @@ export const App: React.FC = () => {
           />
         )}
 
-        {activeTab === "deploy" && <DeployView client={client} />}
+        {activeTab === "deploy" && (
+          <DeployView
+            client={client}
+            rpcHealth={rpcHealth}
+            onRefreshRpc={fetchRpcHealth}
+          />
+        )}
       </main>
     </div>
   );

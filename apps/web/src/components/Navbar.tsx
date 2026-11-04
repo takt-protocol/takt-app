@@ -1,7 +1,15 @@
 import React from "react";
 import { ViewTab } from "../types.js";
-import { Cpu, Layers, Shield, Terminal, Wallet, CheckCircle2 } from "lucide-react";
+import { Cpu, Layers, Shield, Terminal, Wallet, CheckCircle2, RefreshCw, Activity } from "lucide-react";
 import { shortenAddress } from "@takt-protocol/sdk";
+
+export interface NavbarRpcHealth {
+  status: string;
+  latestLedger?: number;
+  isSimulated?: boolean;
+  isLoading?: boolean;
+  lastCheckedAt?: Date | null;
+}
 
 interface NavbarProps {
   activeTab: ViewTab;
@@ -9,6 +17,8 @@ interface NavbarProps {
   walletAddress: string | null;
   onConnectWallet: () => void;
   networkName: string;
+  rpcHealth?: NavbarRpcHealth | null;
+  onRefreshRpc?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -17,6 +27,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   walletAddress,
   onConnectWallet,
   networkName,
+  rpcHealth,
+  onRefreshRpc,
 }) => {
   return (
     <header className="border-b border-slate-800 bg-slate-900/60 backdrop-blur sticky top-0 z-50">
@@ -25,13 +37,48 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
             <Cpu className="h-6 w-6 text-white"/>
           </div>
-          <div>
+          <div className="flex items-center flex-wrap gap-2">
             <span className="text-xl font-bold bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">
               Takt Protocol
             </span>
-            <span className="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wide">
+            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wide">
               {networkName}
             </span>
+
+            {/* Live Soroban RPC Status Indicator */}
+            {rpcHealth?.isLoading ? (
+              <span className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700">
+                <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-ping"></span>
+                <span>Connecting RPC...</span>
+              </span>
+            ) : rpcHealth?.isSimulated || rpcHealth?.status === "offline" ? (
+              <span
+                className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                title="Soroban RPC unreachable. Operating in simulated offline mode."
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400"></span>
+                <span>RPC Offline / Simulated</span>
+              </span>
+            ) : rpcHealth?.status === "healthy" ? (
+              <span
+                className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm"
+                title={`Live Soroban Testnet connected. Latest Ledger: #${rpcHealth.latestLedger ?? "Active"}`}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="font-mono">Ledger #{rpcHealth.latestLedger ? rpcHealth.latestLedger.toLocaleString() : "Live"}</span>
+              </span>
+            ) : null}
+
+            {onRefreshRpc && (
+              <button
+                onClick={onRefreshRpc}
+                disabled={rpcHealth?.isLoading}
+                className="p-1 rounded-md text-slate-400 hover:text-emerald-400 hover:bg-slate-800/80 transition-colors"
+                title="Refresh RPC Health"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${rpcHealth?.isLoading ? "animate-spin" : ""}`} />
+              </button>
+            )}
           </div>
         </div>
 

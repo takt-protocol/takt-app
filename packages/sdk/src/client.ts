@@ -1,6 +1,7 @@
 import {
   CreateJobParams,
   DEFAULT_TESTNET_CONFIG,
+  RpcHealthResponse,
   TaktNetworkConfig,
 } from "./types.js";
 
@@ -151,5 +152,55 @@ export class TaktClient {
       method: "cancel_job",
       args: { owner, job_id: jobId },
     };
+  }
+
+  public async getHealth(options: { timeoutMs?: number; signal?: AbortSignal } = {}): Promise<RpcHealthResponse> {
+    const { timeoutMs = 8000, signal } = options;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    const onExternalAbort = () => controller.abort();
+    if (signal) {
+      signal.addEventListener("abort", onExternalAbort);
+    }
+
+    try {
+      const response = await fetch(this.config.rpcUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "getHealth",
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`RPC HTTP error ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      if (!data || typeof data !== "object") {
+        throw new Error("Invalid RPC response: expected JSON object");
+      }
+
+      if (data.error) {
+        throw new Error(data.error.message || `RPC error code ${data.error.code}`);
+      }
+
+      if (!data.result || typeof data.result !== "object" || typeof data.result.status !== "string") {
+        throw new Error("Malformed RPC result: missing valid status field");
+      }
+
+      return data.result as RpcHealthResponse;
+    } finally {
+      clearTimeout(timeoutId);
+      if (signal) {
+        signal.removeEventListener("abort", onExternalAbort);
+      }
+    }
   }
 }

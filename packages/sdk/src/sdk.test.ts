@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   calculateBountySplit,
   decodeContractError,
@@ -60,5 +60,86 @@ describe("@takt-protocol/sdk", () => {
     expect(call.method).toBe("create_job");
     expect(call.args.interval_seconds).toBe(60);
     expect(call.args.bounty_per_run).toBe("200000");
+  });
+
+  it("queries getHealth and parses RPC result successfully", async () => {
+    const mockResponse = {
+      jsonrpc: "2.0",
+      id: 1,
+      result: {
+        status: "healthy",
+        latestLedger: 5553810,
+        latestLedgerCloseTime: "1793792690",
+        oldestLedger: 5432851,
+      },
+    };
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockResponse,
+    } as Response);
+
+    try {
+      const client = new TaktClient();
+      const health = await client.getHealth();
+      expect(health.status).toBe("healthy");
+      expect(health.latestLedger).toBe(5553810);
+      expect(health.latestLedgerCloseTime).toBe("1793792690");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("throws descriptive error when RPC returns an error payload", async () => {
+    const mockErrorResponse = {
+      jsonrpc: "2.0",
+      id: 1,
+      error: { code: -32603, message: "Internal RPC error" },
+    };
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockErrorResponse,
+    } as Response);
+
+    try {
+      const client = new TaktClient();
+      await expect(client.getHealth()).rejects.toThrow("Internal RPC error");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("rejects malformed RPC result missing valid status", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ jsonrpc: "2.0", id: 1, result: { no_status: true } }),
+    } as Response);
+
+    try {
+      const client = new TaktClient();
+      await expect(client.getHealth()).rejects.toThrow("Malformed RPC result: missing valid status field");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("handles HTTP error status codes", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      statusText: "Service Unavailable",
+    } as Response);
+
+    try {
+      const client = new TaktClient();
+      await expect(client.getHealth()).rejects.toThrow("RPC HTTP error 503: Service Unavailable");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });

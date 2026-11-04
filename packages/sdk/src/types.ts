@@ -76,3 +76,12 @@ export const DEFAULT_TESTNET_CONFIG: TaktNetworkConfig = {
   jobEngineId: "CC6ZSDYSGFAZDJ2FP2RT2ZV6NUZN4OFEWYNIS3CYOG2CBG7DIJDCWYOT",
   tokenAddress: "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
 };
+
+export interface RpcHealthResponse {
+  status: "healthy" | string;
+  latestLedger?: number;
+  latestLedgerCloseTime?: string;
+  oldestLedger?: number;
+  ledgerRetentionWindow?: number;
+}
+
