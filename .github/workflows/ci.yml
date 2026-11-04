@@ -35,6 +35,13 @@ jobs:
       - name: Typecheck and build @takt-protocol/web
         run: npm run build --workspace=@takt-protocol/web
 
+      - name: Format check, vet, and test Go keeper service
+        working-directory: services/keeper
+        run: |
+          test -z "$(gofmt -l .)"
+          go vet ./...
+          go test -v ./...
+
       - name: Build Go keeper service
         working-directory: services/keeper
         run: go build -v -o takt-keeper .
