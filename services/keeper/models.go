@@ -41,3 +41,12 @@ type KeeperInfo struct {
 	TotalExecutions  uint64 `json:"total_executions"`
 	Slashes          uint32 `json:"slashes"`
 }
+
+// KeeperMetrics represents runtime telemetry counters for keeper node monitoring.
+type KeeperMetrics struct {
+	PollsTotal          uint64 `json:"polls_total"`
+	ExecutionsAttempted uint64 `json:"executions_attempted"`
+	ExecutionsSucceeded uint64 `json:"executions_succeeded"`
+	LastPollTimestamp   int64  `json:"last_poll_timestamp"`
+	UptimeSeconds       int64  `json:"uptime_seconds"`
+}
