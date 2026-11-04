@@ -1,12 +1,25 @@
 import React, { useState } from "react";
 import { TaktClient } from "@takt-protocol/sdk";
-import { Terminal, Copy, Check, ExternalLink, Shield, Layers, Cpu, Coins } from "lucide-react";
+import { Terminal, Copy, Check, ExternalLink, Shield, Layers, Cpu, Coins, RefreshCw, Activity } from "lucide-react";
+
+export interface DeployRpcHealth {
+  status: string;
+  latestLedger?: number;
+  latestLedgerCloseTime?: string;
+  oldestLedger?: number;
+  isSimulated?: boolean;
+  isLoading?: boolean;
+  lastCheckedAt?: Date | null;
+  error?: string | null;
+}
 
 interface DeployViewProps {
   client: TaktClient;
+  rpcHealth?: DeployRpcHealth | null;
+  onRefreshRpc?: () => void;
 }
 
-export const DeployView: React.FC<DeployViewProps> = ({ client }) => {
+export const DeployView: React.FC<DeployViewProps> = ({ client, rpcHealth, onRefreshRpc }) => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const contracts = [
@@ -66,7 +79,21 @@ export const DeployView: React.FC<DeployViewProps> = ({ client }) => {
 
         <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 backdrop-blur shadow-xl space-y-6 flex flex-col justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-slate-200 mb-4">RPC & Network Parameters</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-slate-200">RPC & Network Parameters</h3>
+              {onRefreshRpc && (
+                <button
+                  onClick={onRefreshRpc}
+                  disabled={rpcHealth?.isLoading}
+                  className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors border border-slate-700 disabled:opacity-50"
+                  title="Query Soroban RPC live status"
+                >
+                  <RefreshCw className={`h-3 w-3 ${rpcHealth?.isLoading ? "animate-spin" : ""}`} />
+                  <span>{rpcHealth?.isLoading ? "Syncing..." : "Refresh RPC"}</span>
+                </button>
+              )}
+            </div>
+
             <div className="space-y-3 text-sm">
               <div className="flex justify-between py-2 border-b border-slate-800/60">
                 <span className="text-slate-400">Network Name</span>
@@ -76,9 +103,51 @@ export const DeployView: React.FC<DeployViewProps> = ({ client }) => {
                 <span className="text-slate-400">Soroban RPC URL</span>
                 <span className="font-mono text-slate-200 text-xs">{client.config.rpcUrl}</span>
               </div>
+              <div className="flex justify-between py-2 border-b border-slate-800/60">
+                <span className="text-slate-400">RPC Health</span>
+                {rpcHealth?.isLoading ? (
+                  <span className="text-xs text-slate-400">Querying RPC...</span>
+                ) : rpcHealth?.isSimulated || rpcHealth?.status === "offline" ? (
+                  <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400"></span>
+                    <span>Offline / Simulated</span>
+                  </span>
+                ) : rpcHealth?.status === "healthy" ? (
+                  <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>Healthy (Live Connected)</span>
+                  </span>
+                ) : (
+                  <span className="text-xs text-slate-500">Unchecked</span>
+                )}
+              </div>
+              <div className="flex justify-between py-2 border-b border-slate-800/60">
+                <span className="text-slate-400">Latest Ledger Height</span>
+                <span className="font-mono text-slate-200 text-xs">
+                  {rpcHealth?.latestLedger ? rpcHealth.latestLedger.toLocaleString() : "Simulation Default"}
+                </span>
+              </div>
+              {rpcHealth?.latestLedgerCloseTime && (
+                <div className="flex justify-between py-2 border-b border-slate-800/60">
+                  <span className="text-slate-400">Ledger Close Time</span>
+                  <span className="font-mono text-slate-400 text-xs">
+                    {new Date(parseInt(rpcHealth.latestLedgerCloseTime) * 1000).toLocaleTimeString()} ({rpcHealth.latestLedgerCloseTime})
+                  </span>
+                </div>
+              )}
+              {rpcHealth?.lastCheckedAt && (
+                <div className="flex justify-between py-2 border-b border-slate-800/60">
+                  <span className="text-slate-400">Last Synced</span>
+                  <span className="font-mono text-slate-400 text-xs">
+                    {rpcHealth.lastCheckedAt.toLocaleTimeString()}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between py-2">
                 <span className="text-slate-400">Network Passphrase</span>
-                <span className="font-mono text-slate-200 text-xs truncate max-w-[200px]">{client.config.networkPassphrase}</span>
+                <span className="font-mono text-slate-200 text-xs truncate max-w-[200px]" title={client.config.networkPassphrase}>
+                  {client.config.networkPassphrase}
+                </span>
               </div>
             </div>
           </div>
