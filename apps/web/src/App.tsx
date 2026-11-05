@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   DEFAULT_TESTNET_CONFIG,
   Job,
   KeeperInfo,
+  RpcHealthStatus,
   TaktClient,
 } from "@takt-protocol/sdk";
 import { DashboardStats, ViewTab } from "./types.js";
@@ -62,6 +63,11 @@ export const App: React.FC = () => {
   const [jobs] = useState<Job[]>(INITIAL_JOBS);
   const [keepers] = useState<KeeperInfo[]>(INITIAL_KEEPERS);
   const [userBalance] = useState<bigint>(450_000_000n);
+  const [rpcHealth, setRpcHealth] = useState<RpcHealthStatus>({
+    status: "offline",
+    latestLedger: null,
+  });
+  const [isRefreshingRpc, setIsRefreshingRpc] = useState<boolean>(false);
 
   const client = useMemo(
     () =>
@@ -83,6 +89,22 @@ export const App: React.FC = () => {
     [],
   );
 
+  const fetchRpcState = useCallback(async () => {
+    setIsRefreshingRpc(true);
+    try {
+      const health = await client.getHealth();
+      setRpcHealth(health);
+    } catch {
+      setRpcHealth({ status: "offline", latestLedger: null });
+    } finally {
+      setIsRefreshingRpc(false);
+    }
+  }, [client]);
+
+  useEffect(() => {
+    void fetchRpcState();
+  }, [fetchRpcState]);
+
   const stats: DashboardStats = useMemo(
     () => ({
       activeJobsCount: jobs.filter((j) => j.status === "Active").length,
@@ -100,15 +122,19 @@ export const App: React.FC = () => {
   };
 
   const handleRefresh = () => {
-    console.log("Refreshed Takt Protocol state.");
+    void fetchRpcState();
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
       <Navbar
         activeTab={activeTab}
+        isRefreshingRpc={isRefreshingRpc}
+        latestLedger={rpcHealth.latestLedger}
         networkName={client.config.network}
         onConnectWallet={handleConnectWallet}
+        onRefreshRpc={handleRefresh}
+        rpcStatus={rpcHealth.status}
         setActiveTab={setActiveTab}
         walletAddress={walletAddress}
       />
@@ -143,7 +169,15 @@ export const App: React.FC = () => {
           />
         )}
 
-        {activeTab === "deploy" && <DeployView client={client} />}
+        {activeTab === "deploy" && (
+          <DeployView
+            client={client}
+            isRefreshingRpc={isRefreshingRpc}
+            latestLedger={rpcHealth.latestLedger}
+            onRefreshRpc={handleRefresh}
+            rpcStatus={rpcHealth.status}
+          />
+        )}
       </main>
     </div>
   );
