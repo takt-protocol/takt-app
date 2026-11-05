@@ -65,9 +65,41 @@ func (d *KeeperDaemon) Start() {
 	}
 }
 
+func (d *KeeperDaemon) ProcessCandidateJobs(jobs []Job) []uint64 {
+	var executed []uint64
+	for _, job := range jobs {
+		if job.Status != StatusActive {
+			continue
+		}
+
+		txXDR := fmt.Sprintf("job:%d:target:%s:fn:%s", job.ID, job.TargetContract, job.TargetFn)
+		if _, err := d.client.SimulateExecuteJob(job.ID, txXDR); err != nil {
+			log.Printf("[Keeper] WARN skipping job_id=%d target=%s fn=%s pre-simulation failed: %v",
+				job.ID, job.TargetContract, job.TargetFn, err)
+			continue
+		}
+
+		sendResp, err := d.client.ExecuteJob(job.ID, txXDR)
+		if err != nil {
+			log.Printf("[Keeper] WARN failed broadcasting execute_job for job_id=%d: %v", job.ID, err)
+			continue
+		}
+
+		log.Printf("[Keeper] INFO executed job_id=%d tx_hash=%s status=%s", job.ID, sendResp.Hash, sendResp.Status)
+		executed = append(executed, job.ID)
+	}
+	return executed
+}
+
 func (d *KeeperDaemon) pollAndExecuteJobs() {
 	log.Println("[Keeper] Polling Soroban RPC for executable jobs...")
-	// In production, this queries JobEngine contract state and submits execute_job transactions
+	var jobs []Job
+	if err := d.client.Call("getExecutableJobs", map[string]interface{}{
+		"jobEngineId": d.config.JobEngineId,
+	}, &jobs); err != nil {
+		return
+	}
+	d.ProcessCandidateJobs(jobs)
 }
 
 func main() {
