@@ -1,5 +1,15 @@
+import { StrKey } from "@stellar/stellar-sdk";
+
 export const STROOPS_PER_TOKEN = 10_000_000n; // 7 decimals on Stellar
 export const BPS_DENOMINATOR = 10_000n;
+
+export function isValidContractId(address: string): boolean {
+  return StrKey.isValidContract(address);
+}
+
+export function isValidPublicKey(address: string): boolean {
+  return StrKey.isValidEd25519PublicKey(address);
+}
 
 export function toStroops(amount: string | number): bigint {
   const normalized = String(amount).trim();

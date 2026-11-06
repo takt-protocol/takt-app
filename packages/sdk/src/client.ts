@@ -3,6 +3,7 @@ import {
   DEFAULT_TESTNET_CONFIG,
   TaktNetworkConfig,
 } from "./types.js";
+import { isValidContractId, isValidPublicKey } from "./format.js";
 
 export interface ContractCallDescriptor {
   contractId: string;
@@ -20,10 +21,24 @@ export class TaktClient {
     };
   }
 
+  private validateContractId(address: string): void {
+    if (!isValidContractId(address)) {
+      throw new Error(`Invalid Soroban contract ID: "${address}"`);
+    }
+  }
+
+  private validatePublicKey(address: string, name: string): void {
+    if (!isValidPublicKey(address)) {
+      throw new Error(`Invalid ${name} public key: "${address}"`);
+    }
+  }
+
   public buildRegisterKeeperCall(
     keeper: string,
     stakeAmount: bigint,
   ): ContractCallDescriptor {
+    this.validateContractId(this.config.keeperRegistryId);
+    this.validatePublicKey(keeper, "keeper");
     if (stakeAmount <= 0n) {
       throw new Error("stakeAmount must be positive");
     }
@@ -38,6 +53,8 @@ export class TaktClient {
   }
 
   public buildRequestUnbondCall(keeper: string): ContractCallDescriptor {
+    this.validateContractId(this.config.keeperRegistryId);
+    this.validatePublicKey(keeper, "keeper");
     return {
       contractId: this.config.keeperRegistryId,
       method: "request_unbond",
@@ -46,6 +63,8 @@ export class TaktClient {
   }
 
   public buildWithdrawStakeCall(keeper: string): ContractCallDescriptor {
+    this.validateContractId(this.config.keeperRegistryId);
+    this.validatePublicKey(keeper, "keeper");
     return {
       contractId: this.config.keeperRegistryId,
       method: "withdraw_stake",
@@ -57,6 +76,8 @@ export class TaktClient {
     owner: string,
     amount: bigint,
   ): ContractCallDescriptor {
+    this.validateContractId(this.config.bountyVaultId);
+    this.validatePublicKey(owner, "owner");
     if (amount <= 0n) {
       throw new Error("deposit amount must be positive");
     }
@@ -75,6 +96,8 @@ export class TaktClient {
     jobId: number,
     amount: bigint,
   ): ContractCallDescriptor {
+    this.validateContractId(this.config.bountyVaultId);
+    this.validatePublicKey(owner, "owner");
     if (amount <= 0n) {
       throw new Error("top-up amount must be positive");
     }
@@ -90,6 +113,9 @@ export class TaktClient {
   }
 
   public buildCreateJobCall(params: CreateJobParams): ContractCallDescriptor {
+    this.validateContractId(this.config.jobEngineId);
+    this.validatePublicKey(params.owner, "owner");
+    this.validateContractId(params.targetContract);
     if (params.intervalSeconds < 5) {
       throw new Error("intervalSeconds must be at least 5 seconds");
     }
@@ -119,6 +145,8 @@ export class TaktClient {
     keeper: string,
     jobId: number,
   ): ContractCallDescriptor {
+    this.validateContractId(this.config.jobEngineId);
+    this.validatePublicKey(keeper, "keeper");
     return {
       contractId: this.config.jobEngineId,
       method: "execute_job",
@@ -130,6 +158,8 @@ export class TaktClient {
   }
 
   public buildPauseJobCall(owner: string, jobId: number): ContractCallDescriptor {
+    this.validateContractId(this.config.jobEngineId);
+    this.validatePublicKey(owner, "owner");
     return {
       contractId: this.config.jobEngineId,
       method: "pause_job",
@@ -138,6 +168,8 @@ export class TaktClient {
   }
 
   public buildResumeJobCall(owner: string, jobId: number): ContractCallDescriptor {
+    this.validateContractId(this.config.jobEngineId);
+    this.validatePublicKey(owner, "owner");
     return {
       contractId: this.config.jobEngineId,
       method: "resume_job",
@@ -146,6 +178,8 @@ export class TaktClient {
   }
 
   public buildCancelJobCall(owner: string, jobId: number): ContractCallDescriptor {
+    this.validateContractId(this.config.jobEngineId);
+    this.validatePublicKey(owner, "owner");
     return {
       contractId: this.config.jobEngineId,
       method: "cancel_job",
