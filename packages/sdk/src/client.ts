@@ -130,6 +130,9 @@ export class TaktClient {
   }
 
   public buildPauseJobCall(owner: string, jobId: number): ContractCallDescriptor {
+    if (!Number.isFinite(jobId) || jobId <= 0) {
+      throw new Error("jobId must be positive");
+    }
     return {
       contractId: this.config.jobEngineId,
       method: "pause_job",
@@ -138,6 +141,9 @@ export class TaktClient {
   }
 
   public buildResumeJobCall(owner: string, jobId: number): ContractCallDescriptor {
+    if (!Number.isFinite(jobId) || jobId <= 0) {
+      throw new Error("jobId must be positive");
+    }
     return {
       contractId: this.config.jobEngineId,
       method: "resume_job",
@@ -146,6 +152,9 @@ export class TaktClient {
   }
 
   public buildCancelJobCall(owner: string, jobId: number): ContractCallDescriptor {
+    if (!Number.isFinite(jobId) || jobId <= 0) {
+      throw new Error("jobId must be positive");
+    }
     return {
       contractId: this.config.jobEngineId,
       method: "cancel_job",

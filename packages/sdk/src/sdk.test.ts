@@ -61,4 +61,63 @@ describe("@takt-protocol/sdk", () => {
     expect(call.args.interval_seconds).toBe(60);
     expect(call.args.bounty_per_run).toBe("200000");
   });
+
+  it("builds job lifecycle and keeper stake call descriptors", () => {
+    const client = new TaktClient();
+    const owner = "owner-address";
+    const keeper = "keeper-address";
+
+    expect(client.buildPauseJobCall(owner, 1)).toEqual({
+      contractId: client.config.jobEngineId,
+      method: "pause_job",
+      args: { owner, job_id: 1 },
+    });
+    expect(client.buildResumeJobCall(owner, 2)).toEqual({
+      contractId: client.config.jobEngineId,
+      method: "resume_job",
+      args: { owner, job_id: 2 },
+    });
+    expect(client.buildCancelJobCall(owner, 3)).toEqual({
+      contractId: client.config.jobEngineId,
+      method: "cancel_job",
+      args: { owner, job_id: 3 },
+    });
+    expect(client.buildRequestUnbondCall(keeper)).toEqual({
+      contractId: client.config.keeperRegistryId,
+      method: "request_unbond",
+      args: { keeper },
+    });
+    expect(client.buildWithdrawStakeCall(keeper)).toEqual({
+      contractId: client.config.keeperRegistryId,
+      method: "withdraw_stake",
+      args: { keeper },
+    });
+  });
+
+  it("rejects non-positive job IDs for pause, resume, and cancel calls", () => {
+    const client = new TaktClient();
+
+    expect(() => client.buildPauseJobCall("owner", 0)).toThrow(
+      "jobId must be positive",
+    );
+    expect(() => client.buildResumeJobCall("owner", -1)).toThrow(
+      "jobId must be positive",
+    );
+    expect(() => client.buildCancelJobCall("owner", 0)).toThrow(
+      "jobId must be positive",
+    );
+  });
+  it("rejects NaN job IDs for pause, resume, and cancel calls", () => {
+    const client = new TaktClient();
+
+    expect(() => client.buildPauseJobCall("owner", Number.NaN)).toThrow(
+      "jobId must be positive",
+    );
+    expect(() => client.buildResumeJobCall("owner", Number.NaN)).toThrow(
+      "jobId must be positive",
+    );
+    expect(() => client.buildCancelJobCall("owner", Number.NaN)).toThrow(
+      "jobId must be positive",
+    );
+  });
 });
