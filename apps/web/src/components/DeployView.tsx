@@ -1,13 +1,35 @@
 import React, { useState } from "react";
-import { TaktClient } from "@takt-protocol/sdk";
-import { Terminal, Copy, Check, ExternalLink, Shield, Layers, Cpu, Coins } from "lucide-react";
+import {
+  TaktClient,
+  decodeContractError,
+  parseSorobanErrorString,
+  type DecodedContractError,
+  type TaktContractSource,
+} from "@takt-protocol/sdk";
+import { Terminal, Copy, Check, ExternalLink, Shield, Layers, Cpu, Coins, Search } from "lucide-react";
 
 interface DeployViewProps {
   client: TaktClient;
 }
 
+const ERROR_SOURCES: { value: TaktContractSource; label: string }[] = [
+  { value: "keeper-registry", label: "Keeper Registry" },
+  { value: "bounty-vault", label: "Bounty Vault" },
+  { value: "job-engine", label: "Job Engine" },
+];
+
 export const DeployView: React.FC<DeployViewProps> = ({ client }) => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [errorSource, setErrorSource] = useState<TaktContractSource>("keeper-registry");
+  const [errorInput, setErrorInput] = useState("");
+
+  const trimmedErrorInput = errorInput.trim();
+  let decodedError: DecodedContractError | null = null;
+  if (/^\d+$/.test(trimmedErrorInput)) {
+    decodedError = decodeContractError(errorSource, Number.parseInt(trimmedErrorInput, 10));
+  } else if (trimmedErrorInput) {
+    decodedError = parseSorobanErrorString(errorSource, trimmedErrorInput);
+  }
 
   const contracts = [
     { name: "Keeper Registry", id: client.config.keeperRegistryId, icon: Shield, color: "text-blue-400" },
@@ -96,6 +118,51 @@ export const DeployView: React.FC<DeployViewProps> = ({ client }) => {
             </a>
           </div>
         </div>
+      </div>
+
+      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 backdrop-blur shadow-xl space-y-4">
+        <div className="flex items-center space-x-2">
+          <Search className="h-5 w-5 text-amber-400"/>
+          <h3 className="text-lg font-semibold text-slate-200">Contract Error Decoder</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <label className="space-y-1.5 text-sm">
+            <span className="text-slate-400">Contract source</span>
+            <select
+              value={errorSource}
+              onChange={(e) => setErrorSource(e.target.value as TaktContractSource)}
+              className="w-full bg-slate-950/60 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-emerald-500"
+            >
+              {ERROR_SOURCES.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="md:col-span-2 space-y-1.5 text-sm">
+            <span className="text-slate-400">Error code or diagnostic string</span>
+            <input
+              type="text"
+              value={errorInput}
+              onChange={(e) => setErrorInput(e.target.value)}
+              placeholder="e.g. 4 or Error(Contract, #4)"
+              className="w-full bg-slate-950/60 border border-slate-800 rounded-lg px-3 py-2 font-mono text-slate-200 focus:outline-none focus:border-emerald-500"
+            />
+          </label>
+        </div>
+        {trimmedErrorInput && !decodedError && (
+          <p className="text-sm text-rose-400">
+            No Error(Contract, #n) code found in this input.
+          </p>
+        )}
+        {decodedError && (
+          <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800/80 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-sm text-amber-400">{decodedError.name}</span>
+              <span className="font-mono text-xs text-slate-500">#{decodedError.code}</span>
+            </div>
+            <p className="text-sm text-slate-300">{decodedError.message}</p>
+          </div>
+        )}
       </div>
     </div>
   );
