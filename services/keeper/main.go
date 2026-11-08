@@ -66,9 +66,26 @@ func (d *KeeperDaemon) Start() {
 	}
 }
 
+// CanSubmitJobExecution runs pre-execution simulateTransaction before broadcasting sendTransaction.
+func (d *KeeperDaemon) CanSubmitJobExecution(jobID uint64, txXdr string) (bool, *SimulateTransactionResult, error) {
+	simRes, err := d.client.SimulateTransaction(txXdr)
+	if err != nil {
+		return false, nil, fmt.Errorf("simulateTransaction failed for job %d: %w", jobID, err)
+	}
+	if simRes.Error != "" {
+		if code, name, ok := ParseJobEngineContractError(simRes.Error); ok {
+			log.Printf("[Keeper] skipping job %d submission: simulation reverted with EngineError #%d (%s): %s", jobID, code, name, simRes.Error)
+		} else {
+			log.Printf("[Keeper] skipping job %d submission: simulation failed: %s", jobID, simRes.Error)
+		}
+		return false, simRes, nil
+	}
+	return true, simRes, nil
+}
+
 func (d *KeeperDaemon) pollAndExecuteJobs() {
 	log.Println("[Keeper] stub: job polling and execution are not implemented; no RPC queries are made")
-	// In production, this queries JobEngine contract state and submits execute_job transactions
+	// In production, this queries JobEngine contract state, runs CanSubmitJobExecution, and submits execute_job transactions
 }
 
 func main() {
