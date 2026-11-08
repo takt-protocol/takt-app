@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
+	"strconv"
 	"time"
 )
 
@@ -37,6 +39,59 @@ type JSONRPCResponse struct {
 type RPCError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
+}
+
+type SimulateTransactionParams struct {
+	Transaction string `json:"transaction"`
+}
+
+type SimulateTransactionResult struct {
+	Error           string `json:"error,omitempty"`
+	TransactionData string `json:"transactionData,omitempty"`
+	MinResourceFee  string `json:"minResourceFee,omitempty"`
+	LatestLedger    uint64 `json:"latestLedger,omitempty"`
+}
+
+var contractErrRegex = regexp.MustCompile(`(?i)Error\(Contract,\s*#(\d+)\)`)
+
+var jobEngineErrorNames = map[int]string{
+	1:  "AlreadyInitialized",
+	2:  "NotInitialized",
+	3:  "InvalidInterval",
+	4:  "InvalidBounty",
+	5:  "InsufficientInitialFunding",
+	6:  "JobNotFound",
+	7:  "JobNotActive",
+	8:  "JobNotPaused",
+	9:  "UnauthorizedOwner",
+	10: "IntervalNotElapsed",
+	11: "MaxRunsReached",
+	12: "Overflow",
+}
+
+func ParseJobEngineContractError(raw string) (int, string, bool) {
+	matches := contractErrRegex.FindStringSubmatch(raw)
+	if len(matches) < 2 {
+		return 0, "", false
+	}
+	code, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return 0, "", false
+	}
+	name, ok := jobEngineErrorNames[code]
+	if !ok {
+		name = "UnknownContractError"
+	}
+	return code, name, true
+}
+
+func (c *RPCClient) SimulateTransaction(txXdr string) (*SimulateTransactionResult, error) {
+	var result SimulateTransactionResult
+	err := c.Call("simulateTransaction", SimulateTransactionParams{Transaction: txXdr}, &result)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
 func (c *RPCClient) Call(method string, params interface{}, out interface{}) error {
