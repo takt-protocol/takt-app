@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 )
 
 type Config struct {
@@ -14,6 +15,8 @@ type Config struct {
 	KeeperRegistryId    string
 	BountyVaultId       string
 	JobEngineId         string
+	RPCMaxRetries       int
+	RPCBaseDelay        time.Duration
 }
 
 func LoadConfig() (*Config, error) {
@@ -87,6 +90,24 @@ func LoadConfig() (*Config, error) {
 		engineId = "CC6ZSDYSGFAZDJ2FP2RT2ZV6NUZN4OFEWYNIS3CYOG2CBG7DIJDCWYOT"
 	}
 
+	maxRetries := 3
+	if val := os.Getenv("TAKT_RPC_MAX_RETRIES"); val != "" {
+		parsed, err := strconv.Atoi(val)
+		if err != nil || parsed < 0 {
+			return nil, fmt.Errorf("invalid TAKT_RPC_MAX_RETRIES: %s", val)
+		}
+		maxRetries = parsed
+	}
+
+	baseDelay := 500 * time.Millisecond
+	if val := os.Getenv("TAKT_RPC_BASE_DELAY_MS"); val != "" {
+		parsed, err := strconv.Atoi(val)
+		if err != nil || parsed <= 0 {
+			return nil, fmt.Errorf("invalid TAKT_RPC_BASE_DELAY_MS: %s", val)
+		}
+		baseDelay = time.Duration(parsed) * time.Millisecond
+	}
+
 	return &Config{
 		RPCURL:              rpcURL,
 		KeeperSecret:        keeperSecret,
@@ -95,5 +116,7 @@ func LoadConfig() (*Config, error) {
 		KeeperRegistryId:    registryId,
 		BountyVaultId:       vaultId,
 		JobEngineId:         engineId,
+		RPCMaxRetries:       maxRetries,
+		RPCBaseDelay:        baseDelay,
 	}, nil
 }
