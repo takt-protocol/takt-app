@@ -61,4 +61,52 @@ describe("@takt-protocol/sdk", () => {
     expect(call.args.interval_seconds).toBe(60);
     expect(call.args.bounty_per_run).toBe("200000");
   });
+
+  it("builds job lifecycle and keeper unbonding call descriptors and rejects jobId <= 0", () => {
+    const client = new TaktClient();
+    const owner = "GBKGRYZZEELD6POCG5E3MNMA3CT7OKF45CUX3FUDSJH6NJXAMTPXIYRS";
+    const keeper = "GBKGRYZZEELD6POCG5E3MNMA3CT7OKF45CUX3FUDSJH6NJXAMTPXIYRS";
+
+    const pauseCall = client.buildPauseJobCall(owner, 42);
+    expect(pauseCall).toEqual({
+      contractId: client.config.jobEngineId,
+      method: "pause_job",
+      args: { owner, job_id: 42 },
+    });
+
+    const resumeCall = client.buildResumeJobCall(owner, 42);
+    expect(resumeCall).toEqual({
+      contractId: client.config.jobEngineId,
+      method: "resume_job",
+      args: { owner, job_id: 42 },
+    });
+
+    const cancelCall = client.buildCancelJobCall(owner, 42);
+    expect(cancelCall).toEqual({
+      contractId: client.config.jobEngineId,
+      method: "cancel_job",
+      args: { owner, job_id: 42 },
+    });
+
+    const unbondCall = client.buildRequestUnbondCall(keeper);
+    expect(unbondCall).toEqual({
+      contractId: client.config.keeperRegistryId,
+      method: "request_unbond",
+      args: { keeper },
+    });
+
+    const withdrawCall = client.buildWithdrawStakeCall(keeper);
+    expect(withdrawCall).toEqual({
+      contractId: client.config.keeperRegistryId,
+      method: "withdraw_stake",
+      args: { keeper },
+    });
+
+    expect(() => client.buildPauseJobCall(owner, 0)).toThrow(/jobId must be a positive integer/);
+    expect(() => client.buildPauseJobCall(owner, -1)).toThrow(/jobId must be a positive integer/);
+    expect(() => client.buildResumeJobCall(owner, 0)).toThrow(/jobId must be a positive integer/);
+    expect(() => client.buildResumeJobCall(owner, -5)).toThrow(/jobId must be a positive integer/);
+    expect(() => client.buildCancelJobCall(owner, 0)).toThrow(/jobId must be a positive integer/);
+    expect(() => client.buildCancelJobCall(owner, -10)).toThrow(/jobId must be a positive integer/);
+  });
 });
