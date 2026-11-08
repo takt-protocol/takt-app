@@ -4,9 +4,19 @@ import { Terminal, Copy, Check, ExternalLink, Shield, Layers, Cpu, Coins } from 
 
 interface DeployViewProps {
   client: TaktClient;
+  rpcHealthy?: boolean | null;
+  latestLedger?: number | null;
+  protocolVersion?: number | null;
+  onRefreshRpc?: () => void;
 }
 
-export const DeployView: React.FC<DeployViewProps> = ({ client }) => {
+export const DeployView: React.FC<DeployViewProps> = ({
+  client,
+  rpcHealthy,
+  latestLedger,
+  protocolVersion,
+  onRefreshRpc,
+}) => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const contracts = [
@@ -76,6 +86,22 @@ export const DeployView: React.FC<DeployViewProps> = ({ client }) => {
                 <span className="text-slate-400">Soroban RPC URL</span>
                 <span className="font-mono text-slate-200 text-xs">{client.config.rpcUrl}</span>
               </div>
+              <div className="flex justify-between py-2 border-b border-slate-800/60">
+                <span className="text-slate-400">RPC Status</span>
+                <span className={`font-mono text-xs ${rpcHealthy ? "text-emerald-400" : "text-amber-400"}`}>
+                  {rpcHealthy === null || rpcHealthy === undefined
+                    ? "Checking..."
+                    : rpcHealthy
+                      ? `Healthy${latestLedger ? ` (Ledger #${latestLedger})` : ""}`
+                      : "RPC Offline / Simulated"}
+                </span>
+              </div>
+              {protocolVersion ? (
+                <div className="flex justify-between py-2 border-b border-slate-800/60">
+                  <span className="text-slate-400">Protocol Version</span>
+                  <span className="font-mono text-slate-200 text-xs">v{protocolVersion}</span>
+                </div>
+              ) : null}
               <div className="flex justify-between py-2">
                 <span className="text-slate-400">Network Passphrase</span>
                 <span className="font-mono text-slate-200 text-xs truncate max-w-[200px]">{client.config.networkPassphrase}</span>
@@ -84,7 +110,17 @@ export const DeployView: React.FC<DeployViewProps> = ({ client }) => {
           </div>
 
           <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
-            <span className="text-xs text-slate-500">Verified via Stellar Explorer</span>
+            <div className="flex items-center space-x-3">
+              <span className="text-xs text-slate-500">Verified via Stellar Explorer</span>
+              {onRefreshRpc && (
+                <button
+                  onClick={onRefreshRpc}
+                  className="text-xs text-teal-400 hover:text-teal-300 font-medium transition-colors"
+                >
+                  Refresh RPC
+                </button>
+              )}
+            </div>
             <a
               href={`https://stellar.expert/explorer/${client.config.network}`}
               target="_blank"

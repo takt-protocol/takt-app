@@ -1,6 +1,6 @@
 import React from "react";
 import { ViewTab } from "../types.js";
-import { Cpu, Layers, Shield, Terminal, Wallet, CheckCircle2 } from "lucide-react";
+import { Cpu, Layers, Shield, Terminal, Wallet, CheckCircle2, Wifi, WifiOff } from "lucide-react";
 import { shortenAddress } from "@takt-protocol/sdk";
 
 interface NavbarProps {
@@ -9,6 +9,8 @@ interface NavbarProps {
   walletAddress: string | null;
   onConnectWallet: () => void;
   networkName: string;
+  rpcHealthy?: boolean | null;
+  latestLedger?: number | null;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -17,6 +19,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   walletAddress,
   onConnectWallet,
   networkName,
+  rpcHealthy,
+  latestLedger,
 }) => {
   return (
     <header className="border-b border-slate-800 bg-slate-900/60 backdrop-blur sticky top-0 z-50">
@@ -25,13 +29,25 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
             <Cpu className="h-6 w-6 text-white"/>
           </div>
-          <div>
+          <div className="flex items-center flex-wrap gap-2">
             <span className="text-xl font-bold bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">
               Takt Protocol
             </span>
-            <span className="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wide">
+            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wide">
               {networkName}
             </span>
+            {rpcHealthy === true && (
+              <span className="inline-flex items-center space-x-1 px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <Wifi className="h-3 w-3" />
+                <span>RPC Healthy{latestLedger ? ` · #${latestLedger}` : ""}</span>
+              </span>
+            )}
+            {rpcHealthy === false && (
+              <span className="inline-flex items-center space-x-1 px-2 py-0.5 text-xs font-medium rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                <WifiOff className="h-3 w-3" />
+                <span>RPC Offline / Simulated</span>
+              </span>
+            )}
           </div>
         </div>
 
