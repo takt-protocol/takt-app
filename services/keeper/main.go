@@ -19,7 +19,7 @@ type KeeperDaemon struct {
 func NewKeeperDaemon(cfg *Config) *KeeperDaemon {
 	return &KeeperDaemon{
 		config: cfg,
-		client: NewRPCClient(cfg.RPCURL),
+		client: NewRPCClientWithRetry(cfg.RPCURL, cfg.RPCMaxRetries, cfg.RPCBaseDelay),
 	}
 }
 
