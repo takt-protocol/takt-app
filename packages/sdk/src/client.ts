@@ -10,6 +10,13 @@ export interface ContractCallDescriptor {
   args: Record<string, unknown>;
 }
 
+export interface SorobanHealthResponse {
+  status: string;
+  latestLedger?: number;
+  oldestLedger?: number;
+  ledgerRetentionWindow?: number;
+}
+
 export class TaktClient {
   public readonly config: TaktNetworkConfig;
 
@@ -18,6 +25,62 @@ export class TaktClient {
       ...DEFAULT_TESTNET_CONFIG,
       ...config,
     };
+  }
+
+  public async getHealth(): Promise<SorobanHealthResponse> {
+    const response = await fetch(this.config.rpcUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "getHealth",
+        params: {},
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Soroban RPC getHealth failed with HTTP ${response.status}`);
+    }
+
+    const payload = (await response.json()) as {
+      result?: SorobanHealthResponse;
+      error?: { code: number; message: string };
+    };
+
+    if (payload.error) {
+      throw new Error(`Soroban RPC error ${payload.error.code}: ${payload.error.message}`);
+    }
+
+    return payload.result ?? { status: "unknown" };
+  }
+
+  public async getLatestLedger(): Promise<{ id?: string; protocolVersion?: number; sequence?: number }> {
+    const response = await fetch(this.config.rpcUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 2,
+        method: "getLatestLedger",
+        params: {},
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Soroban RPC getLatestLedger failed with HTTP ${response.status}`);
+    }
+
+    const payload = (await response.json()) as {
+      result?: { id?: string; protocolVersion?: number; sequence?: number };
+      error?: { code: number; message: string };
+    };
+
+    if (payload.error) {
+      throw new Error(`Soroban RPC error ${payload.error.code}: ${payload.error.message}`);
+    }
+
+    return payload.result ?? {};
   }
 
   public buildRegisterKeeperCall(

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   DEFAULT_TESTNET_CONFIG,
   Job,
@@ -64,6 +64,9 @@ export const App: React.FC = () => {
   const [jobs] = useState<Job[]>(INITIAL_JOBS);
   const [keepers] = useState<KeeperInfo[]>(INITIAL_KEEPERS);
   const [userBalance] = useState<bigint>(450_000_000n);
+  const [rpcHealthy, setRpcHealthy] = useState<boolean | null>(null);
+  const [latestLedger, setLatestLedger] = useState<number | null>(null);
+  const [protocolVersion, setProtocolVersion] = useState<number | null>(null);
 
   const client = useMemo(
     () =>
@@ -85,6 +88,25 @@ export const App: React.FC = () => {
     [],
   );
 
+  const fetchRpcState = useCallback(async () => {
+    try {
+      const [health, ledger] = await Promise.all([
+        client.getHealth(),
+        client.getLatestLedger(),
+      ]);
+      const healthy = health.status === "healthy";
+      setRpcHealthy(healthy);
+      setLatestLedger(ledger.sequence ?? health.latestLedger ?? null);
+      setProtocolVersion(ledger.protocolVersion ?? null);
+    } catch {
+      setRpcHealthy(false);
+    }
+  }, [client]);
+
+  useEffect(() => {
+    void fetchRpcState();
+  }, [fetchRpcState]);
+
   const stats: DashboardStats = useMemo(
     () => ({
       activeJobsCount: jobs.filter((j) => j.status === "Active").length,
@@ -102,18 +124,22 @@ export const App: React.FC = () => {
   };
 
   const handleRefresh = () => {
-    console.log("Refreshed Takt Protocol state.");
+    void fetchRpcState();
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
       <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-center text-xs sm:text-sm text-amber-300 font-medium">
-        Demo mode: wallet signing and transaction submission are not implemented. Data marked &apos;sample&apos; is not live.
+        {rpcHealthy === false
+          ? "RPC Offline / Simulated — displaying local fallback state."
+          : "Demo mode: wallet signing and transaction submission are not implemented. Data marked 'sample' is not live."}
       </div>
       <Navbar
         activeTab={activeTab}
+        latestLedger={latestLedger}
         networkName={client.config.network}
         onConnectWallet={handleConnectWallet}
+        rpcHealthy={rpcHealthy}
         setActiveTab={setActiveTab}
         walletAddress={walletAddress}
       />
@@ -148,7 +174,15 @@ export const App: React.FC = () => {
           />
         )}
 
-        {activeTab === "deploy" && <DeployView client={client} />}
+        {activeTab === "deploy" && (
+          <DeployView
+            client={client}
+            latestLedger={latestLedger}
+            onRefreshRpc={handleRefresh}
+            protocolVersion={protocolVersion}
+            rpcHealthy={rpcHealthy}
+          />
+        )}
       </main>
     </div>
   );
